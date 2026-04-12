@@ -34,6 +34,9 @@
     // Tell it we want the final result, not live guesses while speaking.
     recognition.interimResults = true;
 
+    let transcript = '';   // holds the current spoken expression
+    let pauseTimer = null; // holds the countdown timer reference
+
 
     // ── STEP 3: WHAT HAPPENS WHEN THE BUTTON IS TAPPED ──────────────
     micBtn.addEventListener('click', function() {
@@ -54,7 +57,7 @@
       for (let i = 0; i < event.results.length; i++){
         const chunk = event.results[i][0].transcript;
         if (event.results[i].isFinal){
-          finalText += chunk = ' ';
+          finalText += chunk + ' ';
         } else {
           interimText += chunk;
         }
