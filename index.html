@@ -1,495 +1,147 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VoiceCalc</title>
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;600&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --bg:       #0d0f12;
-      --panel:    #13161b;
-      --border:   #1e2530;
-      --amber:    #f5a623;
-      --amber-dim:#7a5010;
-      --green:    #39e07b;
-      --red:      #e05555;
-      --text:     #c8d0dc;
-      --muted:    #4a5568;
-      --mono:     'Share Tech Mono', monospace;
-      --sans:     'Barlow', sans-serif;
-    }
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--sans);
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      gap: 0;
-      overflow: hidden;
-    }
-
-    /* Scanline overlay */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,0,0,0.08) 2px,
-        rgba(0,0,0,0.08) 4px
-      );
-      pointer-events: none;
-      z-index: 100;
-    }
-
-    .card {
-      width: 100%;
-      max-width: 380px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 32px 28px 28px;
-      display: flex;
-      flex-direction: column;
-      gap: 28px;
-      box-shadow: 0 0 60px rgba(245,166,35,0.04);
-    }
-
-    /* Header */
-    .header {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 16px;
-    }
-    .header h1 {
-      font-family: var(--mono);
-      font-size: 1.1rem;
-      color: var(--amber);
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-    .header .version {
-      font-family: var(--mono);
-      font-size: 0.65rem;
-      color: var(--muted);
-      letter-spacing: 0.08em;
-    }
-    .status-dot {
-      margin-left: auto;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--muted);
-      transition: background 0.3s;
-    }
-    .status-dot.ready   { background: var(--green); box-shadow: 0 0 8px var(--green); }
-    .status-dot.listen  { background: var(--amber); box-shadow: 0 0 8px var(--amber); animation: pulse 1s infinite; }
-    .status-dot.error   { background: var(--red);   box-shadow: 0 0 8px var(--red); }
-
-    @keyframes pulse {
-      0%,100% { opacity: 1; }
-      50%      { opacity: 0.3; }
-    }
-
-    /* Display */
-    .display {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .display-label {
-      font-family: var(--mono);
-      font-size: 0.6rem;
-      letter-spacing: 0.15em;
-      color: var(--muted);
-      text-transform: uppercase;
-    }
-    .transcript-box {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 2px;
-      padding: 12px 14px;
-      font-family: var(--mono);
-      font-size: 0.9rem;
-      color: var(--text);
-      min-height: 52px;
-      line-height: 1.5;
-      word-break: break-word;
-      transition: border-color 0.3s;
-    }
-    .transcript-box.active {
-      border-color: var(--amber-dim);
-    }
-    .transcript-box .placeholder {
-      color: var(--muted);
-      font-style: italic;
-    }
-
-    .result-box {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 2px;
-      padding: 14px;
-      font-family: var(--mono);
-      font-size: 2rem;
-      color: var(--green);
-      text-align: right;
-      min-height: 64px;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      letter-spacing: -0.02em;
-      transition: border-color 0.3s;
-    }
-    .result-box.has-result {
-      border-color: #1e3d2a;
-      box-shadow: inset 0 0 20px rgba(57,224,123,0.04);
-    }
-    .result-box .result-placeholder {
-      font-size: 1rem;
-      color: var(--muted);
-    }
-
-    /* Equation breakdown */
-    .equation {
-      font-family: var(--mono);
-      font-size: 0.75rem;
-      color: var(--muted);
-      text-align: center;
-      min-height: 18px;
-      letter-spacing: 0.05em;
-    }
-    .equation span { color: var(--amber); }
-
-    /* Mic button */
-    .mic-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .mic-btn {
-      width: 84px;
-      height: 84px;
-      border-radius: 50%;
-      border: 2px solid var(--amber-dim);
-      background: transparent;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: border-color 0.2s, box-shadow 0.2s, transform 0.1s;
-      position: relative;
-      outline: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .mic-btn:hover {
-      border-color: var(--amber);
-      box-shadow: 0 0 24px rgba(245,166,35,0.2);
-    }
-    .mic-btn:active { transform: scale(0.95); }
-    .mic-btn.listening {
-      border-color: var(--amber);
-      box-shadow: 0 0 0 0 rgba(245,166,35,0.4);
-      animation: ripple 1.2s infinite;
-    }
-    @keyframes ripple {
-      0%   { box-shadow: 0 0 0 0   rgba(245,166,35,0.4); }
-      70%  { box-shadow: 0 0 0 18px rgba(245,166,35,0);   }
-      100% { box-shadow: 0 0 0 0   rgba(245,166,35,0);   }
-    }
-
-    .mic-btn svg {
-      width: 32px;
-      height: 32px;
-      fill: var(--amber);
-      transition: fill 0.2s;
-    }
-
-    .mic-label {
-      font-family: var(--mono);
-      font-size: 0.65rem;
-      letter-spacing: 0.18em;
-      color: var(--muted);
-      text-transform: uppercase;
-    }
-    .mic-label.listening { color: var(--amber); }
-
-    /* Log */
-    .log {
-      font-family: var(--mono);
-      font-size: 0.65rem;
-      color: var(--muted);
-      text-align: center;
-      letter-spacing: 0.05em;
-      min-height: 16px;
-    }
-    .log.err { color: var(--red); }
-    .log.ok  { color: var(--green); }
-
-    /* Tip */
-    .tip {
-      font-family: var(--sans);
-      font-size: 0.72rem;
-      font-weight: 300;
-      color: var(--muted);
-      text-align: center;
-      line-height: 1.6;
-      border-top: 1px solid var(--border);
-      padding-top: 16px;
-    }
-    .tip strong { color: var(--text); font-weight: 600; }
-  </style>
+  <title>Voice Calculator</title>
 </head>
 <body>
-<div class="card">
 
-  <div class="header">
-    <h1>VoiceCalc</h1>
-    <span class="version">v1.0</span>
-    <div class="status-dot" id="statusDot"></div>
-  </div>
+  <!-- A button the user taps to start listening -->
+  <button id="micBtn">Tap to Speak</button>
 
-  <div class="display">
-    <div class="display-label">Heard</div>
-    <div class="transcript-box" id="transcript">
-      <span class="placeholder">Tap the mic and speak&hellip;</span>
-    </div>
+  <!-- Two paragraphs to show what was heard, and the result -->
+  <p id="heard">Heard: </p>
+  <p id="result">Result: </p>
 
-    <div class="equation" id="equation">&nbsp;</div>
+  <script>
 
-    <div class="display-label">Result</div>
-    <div class="result-box" id="result">
-      <span class="result-placeholder">—</span>
-    </div>
-  </div>
+    // ── STEP 1: GRAB THE HTML ELEMENTS ──────────────────────────────
+    // We store references to the button and paragraphs so we can
+    // update them from JavaScript later.
+    const micBtn = document.getElementById('micBtn');
+    const heard  = document.getElementById('heard');
+    const result = document.getElementById('result');
 
-  <div class="mic-wrap">
-    <button class="mic-btn" id="micBtn" aria-label="Start listening">
-      <!-- Mic icon -->
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm-6 9a6 6 0 0 0 12 0h2a8 8 0 0 1-7 7.93V20h3v2H8v-2h3v-2.07A8 8 0 0 1 4 10h2z"/>
-      </svg>
-    </button>
-    <span class="mic-label" id="micLabel">tap to speak</span>
-  </div>
 
-  <div class="log" id="log">&nbsp;</div>
+    // ── STEP 2: SET UP SPEECH RECOGNITION ───────────────────────────
+    // The browser has a built-in speech-to-text engine.
+    // "webkitSpeechRecognition" is the version Chrome uses.
+    const recognition = new webkitSpeechRecognition();
 
-  <div class="tip">
-    Say something like <strong>"three plus five"</strong> or <strong>"12 plus 7"</strong>
-  </div>
+    // Tell it to stop listening after the user pauses speaking.
+    // (If false, it would listen forever in a loop.)
+    recognition.continuous = false;
 
-</div>
+    // Tell it we want the final result, not live guesses while speaking.
+    recognition.interimResults = false;
 
-<script>
-  // ── Word-to-number map ──────────────────────────────────────────────
-  const WORD_MAP = {
-    zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7,
-    eight:8, nine:9, ten:10, eleven:11, twelve:12, thirteen:13,
-    fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18,
-    nineteen:19, twenty:20, thirty:30, forty:40, fifty:50,
-    sixty:60, seventy:70, eighty:80, ninety:90,
-    hundred:100, thousand:1000, million:1000000
-  };
 
-  function wordsToNumber(str) {
-    const tokens = str.trim().toLowerCase().split(/\s+/);
-    let total = 0, current = 0;
-    for (const t of tokens) {
-      if (WORD_MAP[t] !== undefined) {
-        const v = WORD_MAP[t];
-        if (v === 100)        { current = (current || 1) * 100; }
-        else if (v >= 1000)   { total += (current || 1) * v; current = 0; }
-        else                  { current += v; }
-      }
-    }
-    return total + current;
-  }
-
-  function parseToken(tok) {
-    tok = tok.trim();
-    if (/^\d+(\.\d+)?$/.test(tok)) return parseFloat(tok);
-    const w = wordsToNumber(tok);
-    if (!isNaN(w) && tok.length > 0) return w;
-    return null;
-  }
-
-  function parseExpression(raw) {
-    // Normalise "plus" → "+"
-    const normalised = raw.toLowerCase()
-      .replace(/\bplus\b/g, '+')
-      .replace(/\band\b/g, ' ');          // "twenty and one" → "twenty one"
-
-    // Split on "+"
-    const parts = normalised.split('+');
-    if (parts.length !== 2) return null;
-
-    const a = parseToken(parts[0]);
-    const b = parseToken(parts[1]);
-    if (a === null || b === null) return null;
-    return { a, b, sum: a + b };
-  }
-
-  // ── Speech setup ────────────────────────────────────────────────────
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  const micBtn    = document.getElementById('micBtn');
-  const micLabel  = document.getElementById('micLabel');
-  const statusDot = document.getElementById('statusDot');
-  const transcript= document.getElementById('transcript');
-  const equation  = document.getElementById('equation');
-  const resultBox = document.getElementById('result');
-  const log       = document.getElementById('log');
-
-  function setStatus(state) {
-    statusDot.className = 'status-dot ' + state;
-  }
-
-  function setLog(msg, type='') {
-    log.textContent = msg;
-    log.className   = 'log ' + type;
-  }
-
-  function showResult(expr) {
-    transcript.innerHTML = expr.raw;
-    transcript.classList.remove('active');
-
-    equation.innerHTML =
-      `<span>${expr.a}</span> + <span>${expr.b}</span> = <span>${expr.sum}</span>`;
-
-    resultBox.innerHTML = expr.sum;
-    resultBox.classList.add('has-result');
-
-    setLog('speaking result…', 'ok');
-    speak(expr.sum, () => setLog('ready — tap to speak again', ''));
-  }
-
-  function showError(msg) {
-    setLog(msg, 'err');
-    setStatus('error');
-    setTimeout(() => { setStatus('ready'); setLog('ready — tap to speak', ''); }, 2500);
-  }
-
-  // ── Text-to-speech ──────────────────────────────────────────────────
-  function speak(text, onDone) {
-    const utt = new SpeechSynthesisUtterance(String(text));
-    utt.rate  = 0.95;
-    utt.pitch = 1;
-    utt.onend = onDone || null;
-    speechSynthesis.cancel();          // stop anything already playing
-    speechSynthesis.speak(utt);
-  }
-
-  // ── Main recognition logic ──────────────────────────────────────────
-  if (!SpeechRecognition) {
-    setLog('Web Speech API not supported. Use Chrome on Android.', 'err');
-    micBtn.disabled = true;
-  } else {
-    const recog = new SpeechRecognition();
-    recog.lang         = 'en-US';
-    recog.interimResults= true;
-    recog.maxAlternatives = 3;
-
-    let listening = false;
-
-    micBtn.addEventListener('click', () => {
-      if (listening) {
-        recog.stop();
-        return;
-      }
-      // Reset UI
-      transcript.innerHTML = '<span class="placeholder">Listening…</span>';
-      transcript.classList.add('active');
-      equation.innerHTML   = '&nbsp;';
-      resultBox.innerHTML  = '<span class="result-placeholder">—</span>';
-      resultBox.classList.remove('has-result');
-
-      recog.start();
+    // ── STEP 3: WHAT HAPPENS WHEN THE BUTTON IS TAPPED ──────────────
+    micBtn.addEventListener('click', function() {
+      recognition.start(); // Start the microphone and begin listening
+      heard.textContent  = 'Heard: listening...';
+      result.textContent = 'Result: ';
     });
 
-    recog.onstart = () => {
-      listening = true;
-      micBtn.classList.add('listening');
-      micLabel.textContent = 'listening…';
-      micLabel.classList.add('listening');
-      setStatus('listen');
-      setLog('speak now');
-    };
 
-    recog.onresult = (e) => {
-      const interim = Array.from(e.results)
-        .map(r => r[0].transcript).join(' ');
-      transcript.innerHTML = interim || '<span class="placeholder">…</span>';
-    };
+    // ── STEP 4: WHAT HAPPENS WHEN SPEECH IS CAPTURED ────────────────
+    // When the user stops talking, the browser fires this "onresult" event.
+    // It gives us a "results" object containing what it heard.
+    recognition.onresult = function(event) {
 
-    recog.onend = () => {
-      listening = false;
-      micBtn.classList.remove('listening');
-      micLabel.textContent = 'tap to speak';
-      micLabel.classList.remove('listening');
-      setStatus('ready');
+      // Pull out the text string of what was heard.
+      // [0][0].transcript means: first result, best guess, the text.
+      const spokenText = event.results[0][0].transcript;
 
-      // Try all alternatives
-      if (!recog._lastEvent) { setLog('nothing heard — try again', 'err'); return; }
+      // Show it on screen
+      heard.textContent = 'Heard: ' + spokenText;
 
-      const results = recog._lastEvent.results;
-      let parsed = null;
-      let rawText = '';
+      // Send the text to our parser to do the math
+      const answer = parseAndCalculate(spokenText);
 
-      for (let i = 0; i < results.length; i++) {
-        for (let j = 0; j < results[i].length; j++) {
-          const t = results[i][j].transcript;
-          const p = parseExpression(t);
-          if (p) { parsed = p; parsed.raw = t; rawText = t; break; }
-        }
-        if (parsed) break;
-      }
-
-      if (parsed) {
-        showResult(parsed);
+      // Show the result
+      if (answer !== null) {
+        result.textContent = 'Result: ' + answer;
+        speak(answer); // Say the answer out loud
       } else {
-        transcript.innerHTML = rawText || 'Could not understand';
-        transcript.classList.remove('active');
-        showError('couldn\'t parse — try "three plus five"');
+        result.textContent = 'Result: Could not understand. Try "three plus five"';
       }
     };
 
-    // Store last event for onend to use
-    recog.onresult = (e) => {
-      recog._lastEvent = e;
-      const interim = Array.from(e.results)
-        .map(r => r[0].transcript).join(' ');
-      transcript.innerHTML = interim;
-    };
 
-    recog.onerror = (e) => {
-      recog._lastEvent = null;
-      const msgs = {
-        'no-speech':         'no speech detected — try again',
-        'audio-capture':     'no microphone found',
-        'not-allowed':       'mic permission denied — check browser settings',
-        'network':           'network error',
+    // ── STEP 5: PARSE THE TEXT AND DO THE MATH ──────────────────────
+    // This function takes a string like "three plus five"
+    // and returns 8, or null if it can't figure it out.
+    function parseAndCalculate(text) {
+
+      // Convert to lowercase so "Plus" and "plus" both work
+      text = text.toLowerCase();
+
+      // Replace the word "plus" with the "+" character
+      text = text.replace('plus', '+');
+
+      // Split the string into two parts at the "+" sign
+      // e.g. "three + five" becomes ["three ", " five"]
+      const parts = text.split('+');
+
+      // If we didn't get exactly two parts, we can't continue
+      if (parts.length !== 2) return null;
+
+      // Convert each part (which might be a word like "three") to a number
+      const numA = wordToNumber(parts[0].trim());
+      const numB = wordToNumber(parts[1].trim());
+
+      // If either conversion failed, return null
+      if (numA === null || numB === null) return null;
+
+      // Add them and return the result
+      return numA + numB;
+    }
+
+
+    // ── STEP 6: CONVERT WORD NUMBERS TO ACTUAL NUMBERS ──────────────
+    // This function turns "three" into 3, "12" into 12, etc.
+    function wordToNumber(phrase) {
+
+      // If it's already a plain number like "12", just return it directly
+      if (!isNaN(phrase)) return parseFloat(phrase);
+
+      let total = 0;
+      let current = 0;
+
+      const words = phrase.split(' ');
+
+      for (const word of words){
+
+        // Otherwise look it up in this dictionary of word → number pairs
+      const map = {
+        'zero':0, 'one':1, 'two':2, 'three':3, 'four':4,
+        'five':5, 'six':6, 'seven':7, 'eight':8, 'nine':9,
+        'ten':10, 'eleven':11, 'twelve':12, 'thirteen':13, 'fourteen':14,
+        'fifteen':15, 'sixteen':16, 'seventeen':17, 'eighteen':18, 'nineteen':19,
+        'twenty':20, 'thirty':30, 'forty':40, 'fifty':50, 'sixty':60, 'seventy':70,
+        'eighty':80, 'ninety':90, 'hundred':100, 'thousand':1000, 'million':1000000
       };
-      showError(msgs[e.error] || `error: ${e.error}`);
-    };
 
-    setStatus('ready');
-    setLog('ready — tap to speak');
-  }
-</script>
+      const value = map[word];
+
+      if (value === undefined) continue;
+      else if (value === 100) current *= 100;
+      else if (value >= 1000) {total += (current || 1)*value; current = 0;}
+      else current += value;
+      }
+
+      total += current;
+      return total;
+    }
+
+
+    // ── STEP 7: SPEAK THE RESULT ALOUD ──────────────────────────────
+    // The browser also has a built-in text-to-speech engine.
+    function speak(text) {
+      const utterance = new SpeechSynthesisUtterance(String(text));
+      window.speechSynthesis.speak(utterance);
+    }
+
+  </script>
 </body>
 </html>
