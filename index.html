@@ -67,8 +67,8 @@
       const fullText = (transcript + ' ' + interimText).trim().toLowerCase();
       heard.textContent = 'Heard: ' + fullText;
 
-      if (transcript.includes('equals')) {
-        const expression = transcript.replace('equals', '').trim();
+      if (fullText.includes('equals')) {
+        const expression = fullText.replace('equals', '').trim();
         clearTimeout(pauseTimer);
         processExpression(expression);
         return;
