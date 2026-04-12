@@ -36,7 +36,7 @@
 
     let transcript = '';   // holds the current spoken expression
     let pauseTimer = null; // holds the countdown timer reference
-
+    let processing = false;
 
     // ── STEP 3: WHAT HAPPENS WHEN THE BUTTON IS TAPPED ──────────────
     micBtn.addEventListener('click', function() {
@@ -49,7 +49,10 @@
     // ── STEP 4: WHAT HAPPENS WHEN SPEECH IS CAPTURED ────────────────
     // When the user stops talking, the browser fires this "onresult" event.
     // It gives us a "results" object containing what it heard.
+
     recognition.onresult = function(event) {
+
+      if (processing) return;
 
       let interimText = '';
       let finalText = '';
@@ -81,6 +84,7 @@
     };
 
     function processExpression(text) {
+      processing = true;
       transcript = '';
 
       const answer = parseAndCalculate(text);
@@ -88,9 +92,11 @@
       if (answer !== null) {
         result.textContent = 'Result: ' + answer;
         speak(answer, function(){
+          processing = false;
           heard.textContent = 'Heard: listening for next expression...';
         });
       } else {
+        processing = false;
         result.textContent = 'Result: Could not understand. Try Again...';
       }
       
