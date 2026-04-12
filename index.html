@@ -54,7 +54,7 @@
       let interimText = '';
       let finalText = '';
 
-      for (let i = 0; i < event.results.length; i++){
+      for (let i = event.resultIndex; i < event.results.length; i++){
         const chunk = event.results[i][0].transcript;
         if (event.results[i].isFinal){
           finalText += chunk + ' ';
@@ -63,11 +63,11 @@
         }
       }
 
-      transcript = (finalText + interimText).trim().toLowerCase();
+      transcript = (transcript + ' ' + finalText + interimText).trim().toLowerCase();
       heard.textContent = 'Heard: ' + transcript
 
       if (transcript.includes('equals')) {
-        const expression = transcript.replace('equals', ' ').trim();
+        const expression = transcript.replace('equals', '').trim();
         clearTimeout(pauseTimer);
         processExpression(expression);
         return;
