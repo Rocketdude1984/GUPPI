@@ -29,10 +29,10 @@
 
     // Tell it to stop listening after the user pauses speaking.
     // (If false, it would listen forever in a loop.)
-    recognition.continuous = false;
+    recognition.continuous = true;
 
     // Tell it we want the final result, not live guesses while speaking.
-    recognition.interimResults = false;
+    recognition.interimResults = true;
 
 
     // ── STEP 3: WHAT HAPPENS WHEN THE BUTTON IS TAPPED ──────────────
@@ -48,24 +48,49 @@
     // It gives us a "results" object containing what it heard.
     recognition.onresult = function(event) {
 
-      // Pull out the text string of what was heard.
-      // [0][0].transcript means: first result, best guess, the text.
-      const spokenText = event.results[0][0].transcript;
+      let interimText = '';
+      let finalText = '';
 
-      // Show it on screen
-      heard.textContent = 'Heard: ' + spokenText;
+      for (let i = 0; i < event.results.length; i++){
+        const chunk = event.results[i][0].transcript;
+        if (event.results[i].isFinal){
+          finalText += chunk = ' ';
+        } else {
+          interimText += chunk;
+        }
+      }
 
-      // Send the text to our parser to do the math
-      const answer = parseAndCalculate(spokenText);
+      transcript = (finalText + interimText).trim().toLowerCase();
+      heard.textContent = 'Heard: ' + transcript
 
-      // Show the result
+      if (transcript.includes('equals')) {
+        const expression = transcript.replace('equals', ' ').trim();
+        clearTimeout(pauseTimer);
+        processExpression(expression);
+        return;
+      }
+
+      clearTimeout(pauseTimer);
+      pauseTimer = setTimeout(function(){
+        processExpression(transcript);
+      }, 1000);
+    };
+
+    function processExpression(text) {
+      transcript = '';
+
+      const answer = parseAndCalculate(text);
+
       if (answer !== null) {
         result.textContent = 'Result: ' + answer;
-        speak(answer); // Say the answer out loud
+        speak(answer, function(){
+          heard.textContent = 'Heard: listening for next expression...';
+        });
       } else {
-        result.textContent = 'Result: Could not understand. Try "three plus five"';
+        result.textContent = 'Result: Could not understand. Try Again...';
       }
-    };
+      
+    }
 
 
     // ── STEP 5: PARSE THE TEXT AND DO THE MATH ──────────────────────
@@ -135,8 +160,9 @@
 
     // ── STEP 7: SPEAK THE RESULT ALOUD ──────────────────────────────
     // The browser also has a built-in text-to-speech engine.
-    function speak(text) {
+    function speak(text, onDone) {
       const utterance = new SpeechSynthesisUtterance(String(text));
+      if (onDone) utterance.onend = onDone;
       window.speechSynthesis.speak(utterance);
     }
 
