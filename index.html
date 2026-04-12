@@ -102,17 +102,14 @@
     // This function turns "three" into 3, "12" into 12, etc.
     function wordToNumber(phrase) {
 
+      phrase = phrase.replace(/,/g, '');
+
       // If it's already a plain number like "12", just return it directly
-      if (!isNaN(phrase)) return parseFloat(phrase);
+      if (!isNaN(phrase) && phrase.trim() != '') return parseFloat(phrase);
 
       let total = 0;
       let current = 0;
 
-      const words = phrase.split(' ');
-
-      for (const word of words){
-
-        // Otherwise look it up in this dictionary of word → number pairs
       const map = {
         'zero':0, 'one':1, 'two':2, 'three':3, 'four':4,
         'five':5, 'six':6, 'seven':7, 'eight':8, 'nine':9,
@@ -122,13 +119,14 @@
         'eighty':80, 'ninety':90, 'hundred':100, 'thousand':1000, 'million':1000000
       };
 
-      const value = map[word];
+      for (const word of phrase.split(' ')){
+        const value = map[word];
 
-      if (value === undefined) continue;
-      else if (value === 100) current *= 100;
-      else if (value >= 1000) {total += (current || 1)*value; current = 0;}
-      else current += value;
-      }
+        if (value === undefined) continue;
+        else if (value === 100) current *= 100;
+        else if (value >= 1000) {total += (current || 1)*value; current = 0;}
+        else current += value;
+      };
 
       total += current;
       return total;
