@@ -32,7 +32,7 @@
     recognition.continuous = true;
 
     // Tell it we want the final result, not live guesses while speaking.
-    recognition.interimResults = true;
+    recognition.interimResults = false;
 
     let transcript = '';   // holds the current spoken expression
     let pauseTimer = null; // holds the countdown timer reference
