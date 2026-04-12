@@ -63,8 +63,9 @@
         }
       }
 
-      transcript = (transcript + ' ' + finalText + interimText).trim().toLowerCase();
-      heard.textContent = 'Heard: ' + transcript
+      transcript += finalText;
+      const fullText = (transcript + ' ' + interimText).trim().toLowerCase();
+      heard.textContent = 'Heard: ' + fullText;
 
       if (transcript.includes('equals')) {
         const expression = transcript.replace('equals', '').trim();
