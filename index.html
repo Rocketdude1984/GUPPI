@@ -80,10 +80,10 @@
       const chunk = latest[0].transcript;
 
       if (latest.isFinal) {
-        transcript += chunk + ' ';
+        transcript = chunk;
       }
 
-      const fullText = (transcript + ' ' + chunk).trim().toLowerCase();
+      const fullText = (transcript).trim().toLowerCase();
       heard.textContent = 'Heard: ' + fullText;
 
       if (fullText.includes('equals')){
