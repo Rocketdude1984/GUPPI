@@ -113,16 +113,14 @@
           heard.textContent = 'Heard: listening for next expression...';
           recognition.start();
           let transcript = '';
-          let pauseTimer = null;
-          let processing = false;
+          
         });
       } else {
         processing = false;
         result.textContent = 'Result: Could not understand. Try again...';
         recognition.start();
         let transcript = '';
-        let pauseTimer = null;
-        let processing = false;
+        
       }
     }
 
