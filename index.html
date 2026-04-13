@@ -84,7 +84,7 @@
         if (filtered) transcript = filtered;
       }
 
-      const fullText = filterSpokenText(transcript);
+      const fullText = filterSpokenText(transcript + ' ' + chunk);
       heard.textContent = 'Heard: ' + fullText;
 
       if (fullText){
@@ -119,6 +119,7 @@
         processing = false;
         result.textContent = 'Result: Could not understand. Try again...';
         let transcript = '';
+
       }
     }
 
