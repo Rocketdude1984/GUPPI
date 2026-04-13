@@ -2,64 +2,86 @@
 <html>
 <head>
   <title>Voice Calculator</title>
+  <style>
+    /* The toggle button changes color and text depending on state */
+    #micBtn {
+      font-size: 1.2rem;
+      padding: 12px 32px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #4caf50;  /* green = listening */
+      color: white;
+    }
+
+    #micBtn.off {
+      background: #e53935;  /* red = stopped */
+    }
+  </style>
 </head>
 <body>
 
-  <!-- A button the user taps to start listening -->
-  <button id="micBtn">Tap to Speak</button>
+  <!-- Button doubles as the toggle switch -->
+  <button id="micBtn" class="off">Start Listening</button>
 
-  <!-- Two paragraphs to show what was heard, and the result -->
   <p id="heard">Heard: </p>
   <p id="result">Result: </p>
 
   <script>
 
     // ── STEP 1: GRAB THE HTML ELEMENTS ──────────────────────────────
-    // We store references to the button and paragraphs so we can
-    // update them from JavaScript later.
     const micBtn = document.getElementById('micBtn');
     const heard  = document.getElementById('heard');
     const result = document.getElementById('result');
 
 
     // ── STEP 2: SET UP SPEECH RECOGNITION ───────────────────────────
-    // The browser has a built-in speech-to-text engine.
-    // "webkitSpeechRecognition" is the version Chrome uses.
     const recognition = new webkitSpeechRecognition();
+    recognition.continuous     = true;
+    recognition.interimResults = true;
 
-    // Tell it to stop listening after the user pauses speaking.
-    // (If false, it would listen forever in a loop.)
-    recognition.continuous = true;
-
-    // Tell it we want the final result, not live guesses while speaking.
-    recognition.interimResults = false;
-
-    let transcript = '';   // holds the current spoken expression
-    let pauseTimer = null; // holds the countdown timer reference
+    let transcript = '';
+    let pauseTimer = null;
     let processing = false;
+    let listening  = false;  // tracks whether we are on or off
 
-    // ── STEP 3: WHAT HAPPENS WHEN THE BUTTON IS TAPPED ──────────────
+
+    // ── STEP 3: TOGGLE ON/OFF WHEN BUTTON IS TAPPED ─────────────────
     micBtn.addEventListener('click', function() {
-      recognition.start(); // Start the microphone and begin listening
-      heard.textContent  = 'Heard: listening...';
-      result.textContent = 'Result: ';
+      if (listening) {
+        // Currently ON → turn OFF
+        listening  = false;
+        processing = false;
+        clearTimeout(pauseTimer);
+        recognition.stop();
+        micBtn.textContent = 'Start Listening';
+        micBtn.classList.add('off');       // turns red
+        heard.textContent  = 'Heard: stopped.';
+      } else {
+        // Currently OFF → turn ON
+        listening  = true;
+        transcript = '';
+        processing = false;
+        recognition.start();
+        micBtn.textContent = 'Stop Listening';
+        micBtn.classList.remove('off');    // turns green
+        heard.textContent  = 'Heard: listening...';
+        result.textContent = 'Result: ';
+      }
     });
 
 
     // ── STEP 4: WHAT HAPPENS WHEN SPEECH IS CAPTURED ────────────────
-    // When the user stops talking, the browser fires this "onresult" event.
-    // It gives us a "results" object containing what it heard.
-
     recognition.onresult = function(event) {
 
       if (processing) return;
 
       let interimText = '';
-      let finalText = '';
+      let finalText   = '';
 
-      for (let i = event.resultIndex; i < event.results.length; i++){
+      for (let i = event.resultIndex; i < event.results.length; i++) {
         const chunk = event.results[i][0].transcript;
-        if (event.results[i].isFinal){
+        if (event.results[i].isFinal) {
           finalText += chunk + ' ';
         } else {
           interimText += chunk;
@@ -71,79 +93,60 @@
       heard.textContent = 'Heard: ' + fullText;
 
       if (fullText.includes('equals')) {
-        const expression = fullText.replace('equals', '').trim();
         clearTimeout(pauseTimer);
-        processExpression(expression);
+        processExpression(fullText.replace('equals', '').trim());
         return;
       }
 
       clearTimeout(pauseTimer);
-      pauseTimer = setTimeout(function(){
+      pauseTimer = setTimeout(function() {
         processExpression(fullText);
       }, 1000);
     };
 
+
+    // ── PROCESS AND RESET ────────────────────────────────────────────
     function processExpression(text) {
       processing = true;
       transcript = '';
+      clearTimeout(pauseTimer);
 
       const answer = parseAndCalculate(text);
 
       if (answer !== null) {
         result.textContent = 'Result: ' + answer;
-        speak(answer, function(){
+        const spokenAnswer = numberToWords(answer);
+        speak(spokenAnswer, function() {
           processing = false;
           heard.textContent = 'Heard: listening for next expression...';
         });
       } else {
         processing = false;
-        result.textContent = 'Result: Could not understand. Try Again...';
+        result.textContent = 'Result: Could not understand. Try again...';
       }
-      
     }
 
 
     // ── STEP 5: PARSE THE TEXT AND DO THE MATH ──────────────────────
-    // This function takes a string like "three plus five"
-    // and returns 8, or null if it can't figure it out.
     function parseAndCalculate(text) {
-
-      // Convert to lowercase so "Plus" and "plus" both work
       text = text.toLowerCase();
-
-      // Replace the word "plus" with the "+" character
       text = text.replace('plus', '+');
 
-      // Split the string into two parts at the "+" sign
-      // e.g. "three + five" becomes ["three ", " five"]
       const parts = text.split('+');
-
-      // If we didn't get exactly two parts, we can't continue
       if (parts.length !== 2) return null;
 
-      // Convert each part (which might be a word like "three") to a number
       const numA = wordToNumber(parts[0].trim());
       const numB = wordToNumber(parts[1].trim());
-
-      // If either conversion failed, return null
       if (numA === null || numB === null) return null;
 
-      // Add them and return the result
       return numA + numB;
     }
 
 
     // ── STEP 6: CONVERT WORD NUMBERS TO ACTUAL NUMBERS ──────────────
-    // This function turns "three" into 3, "12" into 12, etc.
     function wordToNumber(phrase) {
-
       phrase = phrase.replace(/,/g, '');
-
-      // If it's already a plain number like "12", just return it directly
-      if (!isNaN(phrase) && phrase.trim() != '') return parseFloat(phrase);
-
-      let total = 0;
-      let current = 0;
+      if (!isNaN(phrase) && phrase.trim() !== '') return parseFloat(phrase);
 
       const map = {
         'zero':0, 'one':1, 'two':2, 'three':3, 'four':4,
@@ -154,26 +157,49 @@
         'eighty':80, 'ninety':90, 'hundred':100, 'thousand':1000, 'million':1000000
       };
 
-      for (const word of phrase.split(' ')){
-        const value = map[word];
+      let total = 0, current = 0;
 
-        if (value === undefined) continue;
-        else if (value === 100) current *= 100;
-        else if (value >= 1000) {total += (current || 1)*value; current = 0;}
-        else current += value;
-      };
+      for (const word of phrase.split(' ')) {
+        const value = map[word];
+        if (value === undefined)  continue;
+        else if (value === 100)   current *= 100;
+        else if (value >= 1000) { total += (current || 1) * value; current = 0; }
+        else                      current += value;
+      }
 
       total += current;
       return total;
     }
 
+      // Convert a number to spoken words e.g. 1329 → "one thousand three hundred twenty nine"
+  function numberToWords(n) {
+    if (n === 0) return 'zero';
+
+    const ones     = ['','one','two','three','four','five','six','seven','eight','nine',
+                      'ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen',
+                      'seventeen','eighteen','nineteen'];
+    const tens     = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+
+    function helper(num) {
+      if (num === 0)        return '';
+      if (num < 20)         return ones[num] + ' ';
+      if (num < 100)        return tens[Math.floor(num/10)] + ' ' + helper(num % 10);
+      if (num < 1000)       return ones[Math.floor(num/100)] + ' hundred ' + helper(num % 100);
+      if (num < 1000000)    return helper(Math.floor(num/1000)) + 'thousand ' + helper(num % 1000);
+      return                       helper(Math.floor(num/1000000)) + 'million ' + helper(num % 1000000);
+    }
+
+    return helper(n).trim();
+  }
+
 
     // ── STEP 7: SPEAK THE RESULT ALOUD ──────────────────────────────
-    // The browser also has a built-in text-to-speech engine.
     function speak(text, onDone) {
-      const utterance = new SpeechSynthesisUtterance(String(text));
+      setTimeout(function() {
+        const utterance = new SpeechSynthesisUtterance(String(text));
       if (onDone) utterance.onend = onDone;
       window.speechSynthesis.speak(utterance);
+      }, 500);
     }
 
   </script>
