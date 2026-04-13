@@ -1,118 +1,154 @@
-// ── STEP 1: GRAB THE HTML ELEMENTS ──────────────────────────────
-const micBtn = document.getElementById('micBtn');
-const heard = document.getElementById('heard');
-const result = document.getElementById('result');
-
-// ── STEP 2: SET UP SPEECH RECOGNITION ───────────────────────────
-const recognition = new webkitSpeechRecognition();
-recognition.continuous = true;
-recognition.interimResults = true;
-
-let listening = false; 
-let processing = false;
-
-// ── STEP 3: TOGGLE LOGIC ────────────────────────────────────────
-micBtn.addEventListener('click', function() {
-    if (listening) {
-        listening = false;
-        recognition.stop();
-        micBtn.textContent = 'Start Listening';
-        micBtn.classList.add('off');
-    } else {
-        listening = true;
-        recognition.start();
-        micBtn.textContent = 'Stop Listening';
-        micBtn.classList.remove('off');
-        result.textContent = 'Result: ';
-    }
-});
-
-// ── STEP 4: SPEECH CAPTURE & "EQUALS" TRIGGER ──────────────────
-recognition.onresult = function(event) {
-    if (processing) return;
-
-    let currentTranscript = '';
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-        currentTranscript += event.results[i][0].transcript;
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Voice Calculator</title>
+  <style>
+    /* The toggle button changes color and text depending on state */
+    #micBtn {
+      font-size: 1.2rem;
+      padding: 12px 32px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #4caf50;  /* green = listening */
+      color: white;
     }
 
-    const lowerText = currentTranscript.toLowerCase();
-    heard.textContent = 'Heard: ' + lowerText;
-
-    // ONLY trigger if "equals" or "is" is detected
-    if (lowerText.includes('equals') || lowerText.includes('=')) {
-        processExpression(lowerText);
+    #micBtn.off {
+      background: #e53935;  /* red = stopped */
     }
-};
+  </style>
+</head>
+<body>
 
-// Auto-restart if it stops unexpectedly while "listening" is true
-recognition.onend = function() {
-    if (listening && !processing) {
-        recognition.start();
-    }
-};
+  <!-- Button doubles as the toggle switch -->
+  <button id="micBtn" class="off">Start Listening</button>
 
-// ── STEP 5: CALCULATE AND SPEAK ────────────────────────────────
-function processExpression(text) {
-    processing = true;
-    
-    // Clean the text to just numbers and operators
-    // Remove "equals" so it doesn't break the math parser
-    const cleanMath = text.split(/equals|=/)[0]; 
-    const answer = parseAndCalculate(cleanMath);
+  <p id="heard">Heard: </p>
+  <p id="result">Result: </p>
 
-    if (answer !== null) {
-        result.textContent = 'Result: ' + answer;
-        speak(numberToWords(answer), function() {
-            // Once speaking is done, reset for next round
-            processing = false;
-            if (listening) recognition.start(); 
-        });
-    } else {
-        processing = false;
-    }
-}
+  <script>
 
-// ── STEP 6: MATH PARSER (Your existing logic) ──────────────────
-function parseAndCalculate(text) {
-    text = text.toLowerCase().replace('plus', '+');
-    const parts = text.split('+');
-    if (parts.length !== 2) return null;
+        // ── STEP 1: GRAB THE HTML ELEMENTS ──────────────────────────────
+    const micBtn = document.getElementById('micBtn');
+    const heard = document.getElementById('heard');
+    const result = document.getElementById('result');
 
-    const numA = wordToNumber(parts[0].trim());
-    const numB = wordToNumber(parts[1].trim());
-    
-    return (numA !== null && numB !== null) ? numA + numB : null;
-}
+    // ── STEP 2: SET UP SPEECH RECOGNITION ───────────────────────────
+    const recognition = new webkitSpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
 
-// ── WORD TO NUMBER (Simplified version for clarity) ─────────────
-function wordToNumber(phrase) {
-    if (!isNaN(phrase) && phrase.trim() !== '') return parseFloat(phrase);
-    const map = {
-        'zero':0, 'one':1, 'two':2, 'three':3, 'four':4, 'five':5, 
-        'six':6, 'seven':7, 'eight':8, 'nine':9, 'ten':10,
-        'eleven':11, 'twelve':12, 'thirteen':13, 'twenty':20, 'thirty':30, 'forty':40, 'fifty':50
+    let listening = false; 
+    let processing = false;
+
+    // ── STEP 3: TOGGLE LOGIC ────────────────────────────────────────
+    micBtn.addEventListener('click', function() {
+        if (listening) {
+            listening = false;
+            recognition.stop();
+            micBtn.textContent = 'Start Listening';
+            micBtn.classList.add('off');
+        } else {
+            listening = true;
+            recognition.start();
+            micBtn.textContent = 'Stop Listening';
+            micBtn.classList.remove('off');
+            result.textContent = 'Result: ';
+        }
+    });
+
+    // ── STEP 4: SPEECH CAPTURE & "EQUALS" TRIGGER ──────────────────
+    recognition.onresult = function(event) {
+        if (processing) return;
+
+        let currentTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            currentTranscript += event.results[i][0].transcript;
+        }
+
+        const lowerText = currentTranscript.toLowerCase();
+        heard.textContent = 'Heard: ' + lowerText;
+
+        // ONLY trigger if "equals" or "is" is detected
+        if (lowerText.includes('equals') || lowerText.includes('=')) {
+            processExpression(lowerText);
+        }
     };
-    let val = 0;
-    phrase.split(' ').forEach(w => { if(map[w] !== undefined) val += map[w]; });
-    return val || null;
-}
 
-// ── NUMBER TO WORDS ─────────────────────────────────────────────
-function numberToWords(n) {
-    const ones = ['','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
-    const tens = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
-    if (n === 0) return 'zero';
-    if (n < 20) return ones[n];
-    if (n < 100) return tens[Math.floor(n/10)] + ' ' + ones[n%10];
-    return n.toString(); // Fallback
-}
+    // Auto-restart if it stops unexpectedly while "listening" is true
+    recognition.onend = function() {
+        if (listening && !processing) {
+            recognition.start();
+        }
+    };
 
-// ── SPEAK ───────────────────────────────────────────────────────
-function speak(text, onDone) {
-    // Stop recognition so it doesn't hear itself
-    recognition.stop();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.onend = onDone;
-    window.speechSynthesis.speak(utterance);
-}
+    // ── STEP 5: CALCULATE AND SPEAK ────────────────────────────────
+    function processExpression(text) {
+        processing = true;
+        
+        // Clean the text to just numbers and operators
+        // Remove "equals" so it doesn't break the math parser
+        const cleanMath = text.split(/equals|=/)[0]; 
+        const answer = parseAndCalculate(cleanMath);
+
+        if (answer !== null) {
+            result.textContent = 'Result: ' + answer;
+            speak(numberToWords(answer), function() {
+                // Once speaking is done, reset for next round
+                processing = false;
+                if (listening) recognition.start(); 
+            });
+        } else {
+            processing = false;
+        }
+    }
+
+    // ── STEP 6: MATH PARSER (Your existing logic) ──────────────────
+    function parseAndCalculate(text) {
+        text = text.toLowerCase().replace('plus', '+');
+        const parts = text.split('+');
+        if (parts.length !== 2) return null;
+
+        const numA = wordToNumber(parts[0].trim());
+        const numB = wordToNumber(parts[1].trim());
+        
+        return (numA !== null && numB !== null) ? numA + numB : null;
+    }
+
+    // ── WORD TO NUMBER (Simplified version for clarity) ─────────────
+    function wordToNumber(phrase) {
+        if (!isNaN(phrase) && phrase.trim() !== '') return parseFloat(phrase);
+        const map = {
+            'zero':0, 'one':1, 'two':2, 'three':3, 'four':4, 'five':5, 
+            'six':6, 'seven':7, 'eight':8, 'nine':9, 'ten':10,
+            'eleven':11, 'twelve':12, 'thirteen':13, 'twenty':20, 'thirty':30, 'forty':40, 'fifty':50
+        };
+        let val = 0;
+        phrase.split(' ').forEach(w => { if(map[w] !== undefined) val += map[w]; });
+        return val || null;
+    }
+
+    // ── NUMBER TO WORDS ─────────────────────────────────────────────
+    function numberToWords(n) {
+        const ones = ['','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+        const tens = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+        if (n === 0) return 'zero';
+        if (n < 20) return ones[n];
+        if (n < 100) return tens[Math.floor(n/10)] + ' ' + ones[n%10];
+        return n.toString(); // Fallback
+    }
+
+    // ── SPEAK ───────────────────────────────────────────────────────
+    function speak(text, onDone) {
+        // Stop recognition so it doesn't hear itself
+        recognition.stop();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.onend = onDone;
+        window.speechSynthesis.speak(utterance);
+    }
+
+  </script>
+</body>
+</html>
+
