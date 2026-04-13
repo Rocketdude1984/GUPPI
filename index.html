@@ -113,10 +113,12 @@
         speak(spokenAnswer, function() {
           processing = false;
           heard.textContent = 'Heard: listening for next expression...';
+          recognition.start();
         });
       } else {
         processing = false;
         result.textContent = 'Result: Could not understand. Try again...';
+        recognition.start();
       }
     }
 
@@ -194,6 +196,11 @@
       if (onDone) utterance.onend = onDone;
       window.speechSynthesis.speak(utterance);
       }, 500);
+    }
+
+    recognition.onerror = function(event){
+      if (event.error === 'aborted') return;
+      console.log('Recognition error:', event.error);
     }
 
   </script>
