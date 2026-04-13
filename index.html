@@ -89,7 +89,8 @@
       }
 
       transcript += finalText;
-      const fullText = (transcript + ' ' + interimText).trim().toLowerCase();
+      //const fullText = (transcript + ' ' + interimText).trim().toLowerCase();
+      const fullText = (interimText).trim().toLowerCase();
       heard.textContent = 'Heard: ' + fullText;
 
       if (fullText.includes('equals')) {
