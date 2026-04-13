@@ -38,7 +38,7 @@
     // ── STEP 2: SET UP SPEECH RECOGNITION ───────────────────────────
     const recognition = new webkitSpeechRecognition();
     recognition.continuous     = true;
-    recognition.interimResults = true;
+    recognition.interimResults = false;
 
     let transcript = '';
     let pauseTimer = null;
@@ -89,8 +89,7 @@
       }
 
       transcript += finalText;
-      //const fullText = (transcript + ' ' + interimText).trim().toLowerCase();
-      const fullText = (interimText).trim().toLowerCase();
+      const fullText = (transcript + ' ' + interimText).trim().toLowerCase();
       heard.textContent = 'Heard: ' + fullText;
 
       if (fullText.includes('equals')) {
