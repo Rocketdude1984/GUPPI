@@ -1,234 +1,118 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Voice Calculator</title>
-  <style>
-    /* The toggle button changes color and text depending on state */
-    #micBtn {
-      font-size: 1.2rem;
-      padding: 12px 32px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      background: #4caf50;  /* green = listening */
-      color: white;
-    }
+// ── STEP 1: GRAB THE HTML ELEMENTS ──────────────────────────────
+const micBtn = document.getElementById('micBtn');
+const heard = document.getElementById('heard');
+const result = document.getElementById('result');
 
-    #micBtn.off {
-      background: #e53935;  /* red = stopped */
-    }
-  </style>
-</head>
-<body>
+// ── STEP 2: SET UP SPEECH RECOGNITION ───────────────────────────
+const recognition = new webkitSpeechRecognition();
+recognition.continuous = true;
+recognition.interimResults = true;
 
-  <!-- Button doubles as the toggle switch -->
-  <button id="micBtn" class="off">Start Listening</button>
+let listening = false; 
+let processing = false;
 
-  <p id="heard">Heard: </p>
-  <p id="result">Result: </p>
-
-  <script>
-
-    // ── STEP 1: GRAB THE HTML ELEMENTS ──────────────────────────────
-    const micBtn = document.getElementById('micBtn');
-    const heard  = document.getElementById('heard');
-    const result = document.getElementById('result');
-
-
-    // ── STEP 2: SET UP SPEECH RECOGNITION ───────────────────────────
-    const recognition = new webkitSpeechRecognition();
-    recognition.continuous     = true;
-    recognition.interimResults = true;
-
-    let transcript = '';
-    let pauseTimer = null;
-    let processing = false;
-    let listening  = false;  // tracks whether we are on or off
-
-
-    // ── STEP 3: TOGGLE ON/OFF WHEN BUTTON IS TAPPED ─────────────────
-    micBtn.addEventListener('click', function() {
-      if (listening) {
-        // Currently ON → turn OFF
-        listening  = false;
-        processing = false;
-        clearTimeout(pauseTimer);
+// ── STEP 3: TOGGLE LOGIC ────────────────────────────────────────
+micBtn.addEventListener('click', function() {
+    if (listening) {
+        listening = false;
         recognition.stop();
         micBtn.textContent = 'Start Listening';
-        micBtn.classList.add('off');       // turns red
-        heard.textContent  = 'Heard: stopped.';
-      } else {
-        // Currently OFF → turn ON
-        listening  = true;
-        transcript = '';
-        processing = false;
+        micBtn.classList.add('off');
+    } else {
+        listening = true;
         recognition.start();
         micBtn.textContent = 'Stop Listening';
-        micBtn.classList.remove('off');    // turns green
-        heard.textContent  = 'Heard: listening...';
+        micBtn.classList.remove('off');
         result.textContent = 'Result: ';
-      }
-    });
+    }
+});
 
+// ── STEP 4: SPEECH CAPTURE & "EQUALS" TRIGGER ──────────────────
+recognition.onresult = function(event) {
+    if (processing) return;
 
-    // ── STEP 4: WHAT HAPPENS WHEN SPEECH IS CAPTURED ────────────────
-    recognition.onresult = function(event) {
+    let currentTranscript = '';
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+        currentTranscript += event.results[i][0].transcript;
+    }
 
-      if (processing) return;
+    const lowerText = currentTranscript.toLowerCase();
+    heard.textContent = 'Heard: ' + lowerText;
 
-      const latest = event.results[event.results.length - 1];
-      const chunk = latest[0].transcript.toLowerCase();
+    // ONLY trigger if "equals" or "is" is detected
+    if (lowerText.includes('equals') || lowerText.includes('=')) {
+        processExpression(lowerText);
+    }
+};
 
-      if (latest.isFinal) {
-        const filtered = filterSpokenText(chunk);
-        if (filtered) transcript = filtered;
-      }
+// Auto-restart if it stops unexpectedly while "listening" is true
+recognition.onend = function() {
+    if (listening && !processing) {
+        recognition.start();
+    }
+};
 
-      const fullText = filterSpokenText(transcript + ' ' + chunk);
-      heard.textContent = 'Heard: ' + fullText;
+// ── STEP 5: CALCULATE AND SPEAK ────────────────────────────────
+function processExpression(text) {
+    processing = true;
+    
+    // Clean the text to just numbers and operators
+    // Remove "equals" so it doesn't break the math parser
+    const cleanMath = text.split(/equals|=/)[0]; 
+    const answer = parseAndCalculate(cleanMath);
 
-      if (fullText){
-        clearTimeout(pauseTimer);
-        pauseTimer = setTimeout(function() {
-          processExpression(fullText.replace('equals', '').trim());
-        }, 1000);
-      }
-
-    };
-
-
-    // ── PROCESS AND RESET ────────────────────────────────────────────
-    function processExpression(text) {
-      processing = true;
-      transcript = '';
-      clearTimeout(pauseTimer);
-
-      const answer = parseAndCalculate(text);
-
-      if (answer !== null) {
+    if (answer !== null) {
         result.textContent = 'Result: ' + answer;
-        const spokenAnswer = numberToWords(answer);
-        speak(spokenAnswer, function() {
-          processing = false;
-          heard.textContent = 'Heard: listening for next expression...';
-          recognition.start();
-          let transcript = '';
-          
+        speak(numberToWords(answer), function() {
+            // Once speaking is done, reset for next round
+            processing = false;
+            if (listening) recognition.start(); 
         });
-      } else {
+    } else {
         processing = false;
-        result.textContent = 'Result: Could not understand. Try again...';
-        let transcript = '';
-
-      }
     }
+}
 
+// ── STEP 6: MATH PARSER (Your existing logic) ──────────────────
+function parseAndCalculate(text) {
+    text = text.toLowerCase().replace('plus', '+');
+    const parts = text.split('+');
+    if (parts.length !== 2) return null;
 
-    // ── STEP 5: PARSE THE TEXT AND DO THE MATH ──────────────────────
-    function parseAndCalculate(text) {
-      text = text.toLowerCase();
-      text = text.replace('plus', '+');
+    const numA = wordToNumber(parts[0].trim());
+    const numB = wordToNumber(parts[1].trim());
+    
+    return (numA !== null && numB !== null) ? numA + numB : null;
+}
 
-      const parts = text.split('+');
-      if (parts.length !== 2) return null;
+// ── WORD TO NUMBER (Simplified version for clarity) ─────────────
+function wordToNumber(phrase) {
+    if (!isNaN(phrase) && phrase.trim() !== '') return parseFloat(phrase);
+    const map = {
+        'zero':0, 'one':1, 'two':2, 'three':3, 'four':4, 'five':5, 
+        'six':6, 'seven':7, 'eight':8, 'nine':9, 'ten':10,
+        'eleven':11, 'twelve':12, 'thirteen':13, 'twenty':20, 'thirty':30, 'forty':40, 'fifty':50
+    };
+    let val = 0;
+    phrase.split(' ').forEach(w => { if(map[w] !== undefined) val += map[w]; });
+    return val || null;
+}
 
-      const numA = wordToNumber(parts[0].trim());
-      const numB = wordToNumber(parts[1].trim());
-      if (numA === null || numB === null) return null;
-
-      return numA + numB;
-    }
-
-
-    // ── STEP 6: CONVERT WORD NUMBERS TO ACTUAL NUMBERS ──────────────
-    function wordToNumber(phrase) {
-      phrase = phrase.replace(/,/g, '');
-      if (!isNaN(phrase) && phrase.trim() !== '') return parseFloat(phrase);
-
-      const map = {
-        'zero':0, 'one':1, 'two':2, 'three':3, 'four':4,
-        'five':5, 'six':6, 'seven':7, 'eight':8, 'nine':9,
-        'ten':10, 'eleven':11, 'twelve':12, 'thirteen':13, 'fourteen':14,
-        'fifteen':15, 'sixteen':16, 'seventeen':17, 'eighteen':18, 'nineteen':19,
-        'twenty':20, 'thirty':30, 'forty':40, 'fifty':50, 'sixty':60, 'seventy':70,
-        'eighty':80, 'ninety':90, 'hundred':100, 'thousand':1000, 'million':1000000,
-      };
-
-      let total = 0, current = 0;
-
-      for (const word of phrase.split(' ')) {
-        const value = map[word];
-        if (value === undefined)  continue;
-        else if (value === 100)   current *= 100;
-        else if (value >= 1000) { total += (current || 1) * value; current = 0; }
-        else                      current += value;
-      }
-
-      total += current;
-      return total;
-    }
-
-      // Convert a number to spoken words e.g. 1329 → "one thousand three hundred twenty nine"
-  function numberToWords(n) {
+// ── NUMBER TO WORDS ─────────────────────────────────────────────
+function numberToWords(n) {
+    const ones = ['','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+    const tens = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
     if (n === 0) return 'zero';
+    if (n < 20) return ones[n];
+    if (n < 100) return tens[Math.floor(n/10)] + ' ' + ones[n%10];
+    return n.toString(); // Fallback
+}
 
-    const ones     = ['','one','two','three','four','five','six','seven','eight','nine',
-                      'ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen',
-                      'seventeen','eighteen','nineteen'];
-    const tens     = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
-
-    function helper(num) {
-      if (num === 0)        return '';
-      if (num < 20)         return ones[num] + ' ';
-      if (num < 100)        return tens[Math.floor(num/10)] + ' ' + helper(num % 10);
-      if (num < 1000)       return ones[Math.floor(num/100)] + ' hundred ' + helper(num % 100);
-      if (num < 1000000)    return helper(Math.floor(num/1000)) + 'thousand ' + helper(num % 1000);
-      return                       helper(Math.floor(num/1000000)) + 'million ' + helper(num % 1000000);
-    }
-
-    return helper(n).trim();
-  }
-
-    // ── FILTER: only keep number words, "plus", and "equals" ────────
-  function filterSpokenText(text) {
-    const validWords = new Set([
-      'zero','one','two','three','four','five','six','seven','eight','nine',
-      'ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen',
-      'seventeen','eighteen','nineteen','twenty','thirty','forty','fifty',
-      'sixty','seventy','eighty','ninety','hundred','thousand','million',
-      'plus','equals', '+', '=',',',
-    ]);
-
-    return text
-      .toLowerCase()
-      .split(' ')
-      .filter(word => {
-        // Keep it if it's in our valid word list
-        if (validWords.has(word)) return true;
-        // Keep it if it's a plain digit like "12" or "3333"
-        if (!isNaN(word) && word.trim() !== '') return true;
-        // Everything else gets thrown away
-        return false;
-      })
-      .join(' ')
-      .trim();
-  }
-
-
-    // ── STEP 7: SPEAK THE RESULT ALOUD ──────────────────────────────
-    function speak(text, onDone) {
-      setTimeout(function() {
-        const utterance = new SpeechSynthesisUtterance(String(text));
-      if (onDone) utterance.onend = onDone;
-      window.speechSynthesis.speak(utterance);
-      }, 500);
-    }
-
-    recognition.onerror = function(event){
-      if (event.error === 'aborted') return;
-      console.log('Recognition error:', event.error);
-    }
-
-  </script>
-</body>
-</html>
+// ── SPEAK ───────────────────────────────────────────────────────
+function speak(text, onDone) {
+    // Stop recognition so it doesn't hear itself
+    recognition.stop();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.onend = onDone;
+    window.speechSynthesis.speak(utterance);
+}
