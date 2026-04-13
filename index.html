@@ -77,25 +77,23 @@
       if (processing) return;
 
       const latest = event.results[event.results.length - 1];
-      const chunk = latest[0].transcript;
+      const chunk = latest[0].transcript.toLowerCase();
 
       if (latest.isFinal) {
-        transcript = chunk;
+        const filtered = filterSpokenText(chunk);
+        if (filtered) transcript = filtered;
       }
 
-      const fullText = (transcript).trim().toLowerCase();
+      const fullText = filterSpokenText(transcript);
       heard.textContent = 'Heard: ' + fullText;
 
-      if (fullText.includes('equals')){
+      if (fullText){
         clearTimeout(pauseTimer);
-        processExpression(fullText.replace('equals', '').trim());
-        return;
+        pauseTimer = setTimeout(function() {
+          processExpression(fullText.replace('equals', '').trim());
+        }, 1000);
       }
 
-      clearTimeout(pauseTimer);
-      pauseTimer = setTimeout(function() {
-        processExpression(fullText);
-      }, 1000);
     };
 
 
@@ -150,7 +148,7 @@
         'ten':10, 'eleven':11, 'twelve':12, 'thirteen':13, 'fourteen':14,
         'fifteen':15, 'sixteen':16, 'seventeen':17, 'eighteen':18, 'nineteen':19,
         'twenty':20, 'thirty':30, 'forty':40, 'fifty':50, 'sixty':60, 'seventy':70,
-        'eighty':80, 'ninety':90, 'hundred':100, 'thousand':1000, 'million':1000000
+        'eighty':80, 'ninety':90, 'hundred':100, 'thousand':1000, 'million':1000000,
       };
 
       let total = 0, current = 0;
@@ -186,6 +184,31 @@
     }
 
     return helper(n).trim();
+  }
+
+    // ── FILTER: only keep number words, "plus", and "equals" ────────
+  function filterSpokenText(text) {
+    const validWords = new Set([
+      'zero','one','two','three','four','five','six','seven','eight','nine',
+      'ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen',
+      'seventeen','eighteen','nineteen','twenty','thirty','forty','fifty',
+      'sixty','seventy','eighty','ninety','hundred','thousand','million',
+      'plus','equals'
+    ]);
+
+    return text
+      .toLowerCase()
+      .split(' ')
+      .filter(word => {
+        // Keep it if it's in our valid word list
+        if (validWords.has(word)) return true;
+        // Keep it if it's a plain digit like "12" or "3333"
+        if (!isNaN(word) && word.trim() !== '') return true;
+        // Everything else gets thrown away
+        return false;
+      })
+      .join(' ')
+      .trim();
   }
 
 
